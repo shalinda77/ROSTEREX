@@ -1,0 +1,2719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC Roster Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10;
+    --bg2: #0d1117;
+    --panel: #0f1923;
+    --border: #1a2a3a;
+    --accent: #00d4ff;
+    --accent2: #00ff88;
+    --accent3: #ff6b35;
+    --accent4: #ffd700;
+    --warn: #ff4444;
+    --text: #c9d1d9;
+    --text-dim: #586069;
+    --text-bright: #e6edf3;
+    --shift1: #0a3d2e;
+    --shift1b: #00ff88;
+    --shift2: #0d2a4a;
+    --shift2b: #00d4ff;
+    --shift3: #2d1b4e;
+    --shift3b: #b47fff;
+    --shift4: #3d2200;
+    --shift4b: #ffd700;
+    --weekend: #1a1208;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,212,255,0.015) 2px, rgba(0,212,255,0.015) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    background: linear-gradient(135deg, #080c10 0%, #0d1929 100%);
+    border-bottom: 1px solid var(--accent);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 0 30px rgba(0,212,255,0.15);
+  }
+
+  .header-icon {
+    width: 42px; height: 42px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 15px rgba(0,212,255,0.4), inset 0 0 15px rgba(0,212,255,0.05);
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 15px rgba(0,212,255,0.4), inset 0 0 15px rgba(0,212,255,0.05); }
+    50% { box-shadow: 0 0 30px rgba(0,212,255,0.7), inset 0 0 20px rgba(0,212,255,0.1); }
+  }
+
+  header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(0,212,255,0.5);
+  }
+
+  header h1 span { color: var(--accent2); }
+
+  .header-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex; gap: 10px; align-items: center;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent2);
+    box-shadow: 0 0 8px var(--accent2);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .status-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+  }
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: calc(100vh - 73px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: var(--bg); }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+  .section-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    padding: 16px 20px 8px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  .form-group {
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(26,42,58,0.5);
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  input[type="text"], input[type="number"], select, input[type="month"] {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  input[type="text"]:focus, input[type="number"]:focus, select:focus, input[type="month"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(0,212,255,0.2);
+  }
+
+  select option { background: var(--panel); }
+
+  .analyst-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0;
+  }
+
+  .analyst-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px 4px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+    cursor: default;
+  }
+
+  .analyst-tag .color-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .analyst-tag .remove-tag {
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 16px;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+
+  .analyst-tag .remove-tag:hover { color: var(--warn); }
+
+  .add-analyst-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .add-analyst-row input { flex: 1; }
+
+  .btn {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .btn-accent {
+    background: var(--accent);
+    color: #000;
+    box-shadow: 0 0 15px rgba(0,212,255,0.3);
+  }
+
+  .btn-accent:hover {
+    background: #33ddff;
+    box-shadow: 0 0 25px rgba(0,212,255,0.5);
+    transform: translateY(-1px);
+  }
+
+  .btn-success {
+    background: var(--accent2);
+    color: #000;
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    box-shadow: 0 0 20px rgba(0,255,136,0.3);
+  }
+
+  .btn-success:hover {
+    background: #33ffaa;
+    box-shadow: 0 0 30px rgba(0,255,136,0.5);
+    transform: translateY(-1px);
+  }
+
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    width: 100%;
+    padding: 10px;
+  }
+
+  .btn-danger:hover {
+    background: var(--warn);
+    color: #fff;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .leave-entry {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .leave-entry select, .leave-entry input {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .leave-entry .btn-remove {
+    background: transparent;
+    border: none;
+    color: var(--warn);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  .sidebar-actions {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+  }
+
+  /* MAIN PANEL */
+  .main-panel {
+    overflow-y: auto;
+    background: var(--bg);
+  }
+
+  .main-panel::-webkit-scrollbar { width: 6px; }
+  .main-panel::-webkit-scrollbar-track { background: var(--bg); }
+  .main-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .roster-header {
+    padding: 20px 24px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .roster-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-bright);
+    letter-spacing: 2px;
+  }
+
+  .roster-meta {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+  }
+
+  /* CALENDAR GRID */
+  .calendar-wrap {
+    padding: 20px 24px;
+  }
+
+  .calendar-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .calendar-grid th {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    padding: 8px 6px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  .calendar-grid th.weekend-th {
+    color: var(--accent3);
+  }
+
+  /* Day cell */
+  .day-cell {
+    vertical-align: top;
+    padding: 4px;
+    border: 1px solid rgba(26,42,58,0.5);
+    min-width: 120px;
+    min-height: 120px;
+    background: var(--bg2);
+    transition: background 0.2s;
+  }
+
+  .day-cell.weekend { background: var(--weekend); }
+  .day-cell.empty { background: transparent; border-color: transparent; }
+
+  .day-num {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-dim);
+    padding: 4px 6px 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .day-num .weekend-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    background: rgba(255,107,53,0.15);
+    color: var(--accent3);
+    border: 1px solid rgba(255,107,53,0.3);
+    padding: 1px 5px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+
+  .day-num .today-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    background: rgba(0,212,255,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.3);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* Shift block */
+  .shift-block {
+    border-radius: 4px;
+    padding: 4px 7px;
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+    transition: filter 0.2s;
+  }
+
+  .shift-block:hover { filter: brightness(1.2); }
+
+  .shift-block::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+
+  .shift-block.s1 { background: var(--shift1); color: var(--shift1b); border: 1px solid rgba(0,255,136,0.2); }
+  .shift-block.s1::before { background: var(--shift1b); }
+  .shift-block.s2 { background: var(--shift2); color: var(--shift2b); border: 1px solid rgba(0,212,255,0.2); }
+  .shift-block.s2::before { background: var(--shift2b); }
+  .shift-block.s3 { background: var(--shift3); color: var(--shift3b); border: 1px solid rgba(180,127,255,0.2); }
+  .shift-block.s3::before { background: var(--shift3b); }
+  .shift-block.s4 { background: var(--shift4); color: var(--shift4b); border: 1px solid rgba(255,215,0,0.2); }
+  .shift-block.s4::before { background: var(--shift4b); }
+
+  .shift-block.leave { background: rgba(255,68,68,0.1); color: #ff6666; border: 1px solid rgba(255,68,68,0.3); }
+  .shift-block.leave::before { background: var(--warn); }
+
+  .shift-block.unassigned { background: rgba(88,96,105,0.15); color: var(--text-dim); border: 1px dashed rgba(88,96,105,0.4); }
+  .shift-block.unassigned::before { background: var(--text-dim); }
+
+  /* Backup analyst pill — shown below each On Duty block */
+  .backup-block {
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin-top: -2px;
+    margin-bottom: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.82;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 0.5px;
+  }
+  .backup-block.s1 { background: rgba(0,255,136,0.06); color: #00cc70; border: 1px dashed rgba(0,255,136,0.25); }
+  .backup-block.s2 { background: rgba(0,212,255,0.06); color: #00aacc; border: 1px dashed rgba(0,212,255,0.25); }
+  .backup-block.s3 { background: rgba(180,127,255,0.06); color: #9966ee; border: 1px dashed rgba(180,127,255,0.25); }
+  .backup-block.unassigned { background: transparent; color: var(--text-dim); border: 1px dashed rgba(88,96,105,0.2); opacity: 0.5; }
+
+  .shift-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    opacity: 0.8;
+    white-space: nowrap;
+    margin-left: auto;
+  }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+    gap: 16px;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    opacity: 0.3;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+
+  .empty-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 16px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+  }
+
+  .empty-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-item {
+    background: var(--bg2);
+    padding: 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* Analyst breakdown */
+  .breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    padding: 20px 24px;
+  }
+
+  .analyst-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .analyst-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .analyst-card .card-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 10px;
+  }
+
+  .card-stat {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(26,42,58,0.5);
+  }
+
+  .card-stat:last-child { border: none; }
+  .card-stat .cs-label { color: var(--text-dim); }
+  .card-stat .cs-value { font-family: 'Share Tech Mono', monospace; color: var(--text-bright); }
+  .card-stat .cs-value.warn { color: var(--warn); }
+
+  /* Errors panel */
+  .errors-panel {
+    margin: 0 24px 20px;
+    background: rgba(255,68,68,0.05);
+    border: 1px solid rgba(255,68,68,0.3);
+    border-radius: 6px;
+    padding: 14px;
+  }
+
+  .errors-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--warn);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+  }
+
+  .error-item {
+    font-size: 12px;
+    color: #ff8888;
+    padding: 3px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .error-item::before { content: '⚠'; font-size: 11px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    background: var(--bg2);
+    gap: 0;
+  }
+
+  .tab {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 12px 20px;
+    cursor: pointer;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .tab:hover { color: var(--accent); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Print / export */
+  .export-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    flex-wrap: wrap;
+  }
+
+  .btn-export {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 7px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  .btn-export:hover { border-color: var(--accent4); color: var(--accent4); }
+
+  /* Tooltip */
+  .shift-block[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: #0d1929;
+    border: 1px solid var(--accent);
+    color: var(--text-bright);
+    padding: 4px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+    border-radius: 4px;
+    z-index: 200;
+    pointer-events: none;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .section-divider {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    padding: 12px 20px 4px;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+
+  @media (max-width: 900px) {
+    .main-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .sidebar { max-height: 40vh; }
+  }
+
+
+  /* ── ANALYST TIMELINE ──────────────────────────────────── */
+  .timeline-wrap {
+    padding: 20px 24px;
+    overflow-x: auto;
+  }
+
+  .timeline-table {
+    border-collapse: collapse;
+    min-width: 100%;
+    font-size: 12px;
+  }
+
+  .timeline-table th {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 6px 4px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    min-width: 34px;
+    position: sticky;
+    top: 0;
+    background: var(--bg2);
+    z-index: 10;
+  }
+
+  .timeline-table th.tl-analyst-col {
+    text-align: left;
+    min-width: 100px;
+    left: 0;
+    z-index: 20;
+    padding-left: 8px;
+  }
+
+  .timeline-table th.weekend-th { color: var(--accent3); }
+
+  .tl-analyst-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 10px 8px;
+    white-space: nowrap;
+    position: sticky;
+    left: 0;
+    background: var(--bg2);
+    z-index: 5;
+    border-right: 1px solid var(--border);
+  }
+
+  .tl-row {
+    border-bottom: 1px solid rgba(26,42,58,0.4);
+    transition: background 0.15s;
+  }
+
+  .tl-row:hover { background: rgba(0,212,255,0.03); }
+
+  .tl-cell {
+    padding: 3px 2px;
+    text-align: center;
+    vertical-align: middle;
+    min-width: 34px;
+    height: 44px;
+    border-right: 1px solid rgba(26,42,58,0.25);
+    position: relative;
+  }
+
+  .tl-cell.tl-weekend { background: rgba(255,107,53,0.04); }
+
+  .tl-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    height: 36px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    flex-direction: column;
+    gap: 1px;
+    cursor: default;
+    transition: filter 0.15s;
+    position: relative;
+  }
+
+  .tl-pill:hover { filter: brightness(1.3); }
+
+  .tl-pill.tl-s1  { background: var(--shift1);  color: var(--shift1b); border: 1px solid rgba(0,255,136,0.25); }
+  .tl-pill.tl-s2  { background: var(--shift2);  color: var(--shift2b); border: 1px solid rgba(0,212,255,0.25); }
+  .tl-pill.tl-s3  { background: var(--shift3);  color: var(--shift3b); border: 1px solid rgba(180,127,255,0.25); }
+  .tl-pill.tl-s4  { background: var(--shift4);  color: var(--shift4b); border: 1px solid rgba(255,215,0,0.25); }
+  .tl-pill.tl-leave { background: rgba(255,68,68,0.12); color: #ff7777; border: 1px solid rgba(255,68,68,0.3); }
+  .tl-pill.tl-off   { background: transparent; color: var(--text-dim); opacity: 0.3; }
+
+  .tl-streak-badge {
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    background: var(--warn);
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 1px 4px;
+    line-height: 1.4;
+    z-index: 2;
+    box-shadow: 0 0 6px rgba(255,68,68,0.5);
+  }
+
+  .tl-legend {
+    display: flex;
+    gap: 16px;
+    padding: 0 24px 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .tl-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .tl-legend-pill {
+    width: 28px; height: 16px;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700;
+  }
+
+  .tl-summary-row td {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 4px 2px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+  }
+
+  .tl-summary-row .tl-analyst-name {
+    color: var(--text-dim);
+    font-size: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-weight: normal;
+  }
+
+  .tl-consecutive-info {
+    padding: 12px 24px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  .tl-consec-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 140px;
+  }
+
+  .tl-consec-card .cc-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .tl-consec-card .cc-stat {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .tl-consec-card .cc-val {
+    font-size: 11px;
+  }
+
+  .tl-consec-card .cc-val.cc-warn { color: var(--warn); }
+  .tl-consec-card .cc-val.cc-ok   { color: var(--accent2); }
+
+  /* Hide-leave mode — toggled by JS on #tab-timeline */
+  #tab-timeline.hide-leave .tl-nw-cell {
+    min-width: 10px !important;
+    width: 10px !important;
+    padding: 0 !important;
+    border-right: 1px solid rgba(26,42,58,0.15) !important;
+    background: transparent !important;
+    overflow: hidden;
+  }
+
+  #tab-timeline.hide-leave .tl-hideable {
+    display: none !important;
+  }
+
+  #tab-timeline.hide-leave .timeline-table th.tl-nw-th {
+    min-width: 10px !important;
+    width: 10px !important;
+    padding: 0 2px !important;
+    font-size: 0 !important;        /* hide text */
+    border-right: 1px solid rgba(26,42,58,0.15) !important;
+  }
+
+  #tlHideLeaveBtn.active {
+    border-color: var(--accent2) !important;
+    color: var(--accent2) !important;
+    background: rgba(0,255,136,0.08) !important;
+    box-shadow: 0 0 10px rgba(0,255,136,0.2);
+  }
+
+/* ── MANUAL PIN MODAL ───────────────────────────────────────────────────── */
+  #shiftEditOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 6000;
+    align-items: center;
+    justify-content: center;
+  }
+  #shiftEditOverlay.open { display: flex; }
+  #shiftEditModal {
+    background: #0f1923;
+    border: 1px solid #00d4ff;
+    border-radius: 10px;
+    padding: 24px 28px;
+    width: 320px;
+    box-shadow: 0 0 40px rgba(0,212,255,0.3);
+  }
+  #shiftEditModal h3 {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    color: #00d4ff;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  #shiftEditModal .sem-meta {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: #586069;
+    margin-bottom: 16px;
+  }
+  #shiftEditModal label {
+    display: block;
+    font-size: 11px;
+    color: #586069;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  #shiftEditSelect {
+    width: 100%;
+    background: #080c10;
+    border: 1px solid #00d4ff;
+    color: #e6edf3;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .sem-actions { display: flex; gap: 10px; }
+  .sem-actions button { flex: 1; }
+  .sem-unpin-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px;
+    background: transparent;
+    border: 1px solid #ff6b35;
+    color: #ff6b35;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: background 0.2s;
+  }
+  .sem-unpin-btn:hover { background: rgba(255,107,53,0.15); }
+  .sem-note {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: #586069;
+    text-align: center;
+    margin-top: 10px;
+    opacity: 0.7;
+  }
+
+  @media print {
+    .sidebar, header, .tabs, .export-row, .sidebar-actions { display: none !important; }
+    .main-layout { display: block; }
+    .main-panel { overflow: visible; height: auto; }
+    body::before { display: none; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">🛡️</div>
+  <div>
+    <h1>SOC <span>ROSTER</span></h1>
+    <div class="header-sub">SECURITY OPERATIONS CENTER // 24×7 SHIFT PLANNER</div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <div class="status-text">SYSTEM ONLINE</div>
+  </div>
+</header>
+
+<div class="main-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="section-label">▸ Configuration</div>
+
+    <div class="form-group">
+      <label>Roster Month</label>
+      <input type="month" id="rosterMonth" onchange="syncMonthToRange()">
+    </div>
+
+    <div class="form-group">
+      <label>Start Date</label>
+      <input type="date" id="rosterStartDate" onchange="syncRangeToMonth()">
+    </div>
+
+    <div class="form-group">
+      <label>End Date</label>
+      <input type="date" id="rosterEndDate" onchange="syncRangeToMonth()">
+    </div>
+
+    <div class="section-label">▸ Analysts</div>
+
+    <div class="form-group">
+      <div class="analyst-tags" id="analystTags"></div>
+      <div class="add-analyst-row" style="margin-top:8px">
+        <input type="text" id="analystInput" placeholder="Analyst name..." maxlength="30">
+        <button class="btn btn-accent" onclick="addAnalyst()">+</button>
+      </div>
+    </div>
+
+    <div class="section-label">▸ Shift Types</div>
+
+    <div class="form-group">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--shift1b);display:inline-block;flex-shrink:0"></span>
+          <span style="color:var(--text-dim);font-family:Share Tech Mono,monospace;font-size:11px">S1</span>
+          <span style="color:var(--text-bright)">05:00 – 15:00</span>
+          <span style="margin-left:auto;color:var(--text-dim);font-size:11px">(WD+WE)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--shift2b);display:inline-block;flex-shrink:0"></span>
+          <span style="color:var(--text-dim);font-family:Share Tech Mono,monospace;font-size:11px">S2</span>
+          <span style="color:var(--text-bright)">14:00 – 24:00</span>
+          <span style="margin-left:auto;color:var(--text-dim);font-size:11px">(WD+WE)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--shift3b);display:inline-block;flex-shrink:0"></span>
+          <span style="color:var(--text-dim);font-family:Share Tech Mono,monospace;font-size:11px">S3</span>
+          <span style="color:var(--text-bright)">23:00 – 06:00</span>
+          <span style="margin-left:auto;color:var(--text-dim);font-size:11px">(WD+WE)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--shift4b);display:inline-block;flex-shrink:0"></span>
+          <span style="color:var(--text-dim);font-family:Share Tech Mono,monospace;font-size:11px">S4</span>
+          <span style="color:var(--text-bright)">20:00 – 03:00</span>
+          <span style="margin-left:auto;color:var(--text-dim);font-size:11px">(WD only)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">▸ Leave Management</div>
+
+    <div class="form-group">
+      <div id="leaveDropZone" style="border:1px dashed var(--border);border-radius:6px;padding:12px 10px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:10px;background:var(--panel)"
+        onclick="document.getElementById('leaveCsvInput').click()"
+        ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 12px rgba(0,212,255,0.2)'"
+        ondragleave="this.style.borderColor='var(--border)';this.style.boxShadow='none'"
+        ondrop="handleLeaveCsvDrop(event)">
+        <div style="font-size:20px;margin-bottom:4px">📂</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:1px">UPLOAD LEAVE CSV</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);margin-top:3px">Click or drag &amp; drop</div>
+        <input type="file" id="leaveCsvInput" accept=".csv,.txt" style="display:none" onchange="handleLeaveCsvFile(this)">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+          Format: <span style="color:var(--accent2)">analyst,date,shift</span>
+        </div>
+        <button class="btn-export" onclick="downloadLeaveTemplate()" style="font-size:10px;padding:4px 10px;border-radius:3px">⬇ Template</button>
+      </div>
+      <div id="csvStatus" style="display:none;font-family:'Share Tech Mono',monospace;font-size:11px;padding:6px 10px;border-radius:4px;margin-bottom:8px;"></div>
+      <div id="leaveList"></div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:6px" onclick="addLeaveEntry()">+ Add Leave Manually</button>
+    </div>
+
+    <div class="sidebar-actions">
+      <button class="btn btn-success" onclick="generateRoster()" id="generateBtn">⚡ GENERATE ROSTER</button>
+      <button class="btn btn-danger" onclick="clearAll()">✕ CLEAR ALL</button>
+    </div>
+
+  </aside>
+
+  <!-- MAIN PANEL -->
+  <main class="main-panel" id="mainPanel">
+    <div class="empty-state">
+      <div class="empty-icon">📡</div>
+      <div class="empty-title">AWAITING ROSTER GENERATION</div>
+      <div class="empty-sub">Configure analysts, month, and leaves → click GENERATE</div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const ANALYST_COLORS = [
+  '#00ff88','#00d4ff','#b47fff','#ffd700','#ff6b35','#ff6bbb','#6bffdc','#ffb347'
+];
+
+// Shifts definition
+// type, label, startH (0-23), endH, durationHrs, weekdays, weekends
+const SHIFTS = [
+  { id:'S1', label:'05:00–15:00', cls:'s1', startH:5,  endH:15, dur:10, weekdays:true,  weekends:true },
+  { id:'S2', label:'14:00–24:00', cls:'s2', startH:14, endH:24, dur:10, weekdays:true,  weekends:true },
+  { id:'S3', label:'23:00–06:00', cls:'s3', startH:23, endH:30, dur:7,  weekdays:true,  weekends:true }, // endH=30 means next day 06:00
+  { id:'S4', label:'20:00–03:00', cls:'s4', startH:20, endH:27, dur:7,  weekdays:true,  weekends:false },
+];
+
+let analysts = ['Anji','Avishka','Dulin','Ravindu','Shanon','Sithija'];
+let leaves = []; // {analyst, date (YYYY-MM-DD), shift (S1/S2/S3/S4/ALL)}
+let rosterData = null; // generated roster
+let generationCount = 0;
+// pinnedShifts: { "YYYY-MM-DD": { S1: analystName|null, ... } }
+let pinnedShifts = {};
+
+// Seeded RNG (mulberry32) for reproducible-but-varied generation
+function makeRng(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  const yr  = now.getFullYear();
+  const mo  = now.getMonth() + 1;
+  const lastDay = new Date(yr, mo, 0).getDate();
+  document.getElementById('rosterMonth').value = `${yr}-${String(mo).padStart(2,'0')}`;
+  document.getElementById('rosterStartDate').value = `${yr}-${String(mo).padStart(2,'0')}-01`;
+  document.getElementById('rosterEndDate').value   = `${yr}-${String(mo).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  renderAnalystTags();
+});
+
+// Sync month picker → update date range to full month
+function syncMonthToRange() {
+  const monthVal = document.getElementById('rosterMonth').value;
+  if (!monthVal) return;
+  const [yr, mo] = monthVal.split('-').map(Number);
+  const lastDay = new Date(yr, mo, 0).getDate();
+  document.getElementById('rosterStartDate').value = `${yr}-${String(mo).padStart(2,'0')}-01`;
+  document.getElementById('rosterEndDate').value   = `${yr}-${String(mo).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+}
+
+// Sync date range → update month picker to match start date's month
+function syncRangeToMonth() {
+  const startVal = document.getElementById('rosterStartDate').value;
+  if (!startVal) return;
+  const [yr, mo] = startVal.split('-');
+  document.getElementById('rosterMonth').value = `${yr}-${mo}`;
+}
+
+document.getElementById('analystInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addAnalyst();
+});
+
+// ─── LEAVE CSV UPLOAD ────────────────────────────────────────────────────────
+function handleLeaveCsvFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => parseLeaveCsv(e.target.result);
+  reader.readAsText(file);
+  input.value = ''; // reset so same file can be re-uploaded
+}
+
+function handleLeaveCsvDrop(event) {
+  event.preventDefault();
+  const zone = document.getElementById('leaveDropZone');
+  zone.style.borderColor = 'var(--border)';
+  zone.style.boxShadow = 'none';
+  const file = event.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => parseLeaveCsv(e.target.result);
+  reader.readAsText(file);
+}
+
+function parseLeaveCsv(text) {
+  const statusEl = document.getElementById('csvStatus');
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+
+  if (!lines.length) {
+    showCsvStatus('No data found in file.', 'error');
+    return;
+  }
+
+  // Detect if first line is a header (contains "analyst" or "name" case-insensitive)
+  let dataLines = lines;
+  if (/analyst|name|date|shift/i.test(lines[0])) dataLines = lines.slice(1);
+
+  const added = [];
+  const skipped = [];
+  const VALID_SHIFTS = ['S1','S2','S3','S4','ALL'];
+
+  dataLines.forEach((line, idx) => {
+    // Detect separator: tab takes priority, then semicolon, then comma
+    // But we only split the FIRST 2 separators so that "S2,S3,S4" in the
+    // third column is kept together as one multi-shift string.
+    let sep = '\t';
+    if (!line.includes('\t')) sep = line.includes(';') ? ';' : ',';
+
+    // Split only on first 2 occurrences of separator to preserve multi-shift values
+    let analyst, date, shiftRaw;
+    if (sep === ',') {
+      // For comma-separated: analyst name may not contain commas, date never does,
+      // so everything from the 3rd comma onward belongs to the shift column.
+      const firstComma  = line.indexOf(',');
+      const secondComma = line.indexOf(',', firstComma + 1);
+      if (firstComma === -1) { skipped.push(`Row ${idx+2}: too few columns`); return; }
+      analyst  = line.slice(0, firstComma).trim().replace(/^["']|["']$/g, '');
+      date     = secondComma === -1
+        ? line.slice(firstComma + 1).trim().replace(/^["']|["']$/g, '')
+        : line.slice(firstComma + 1, secondComma).trim().replace(/^["']|["']$/g, '');
+      shiftRaw = secondComma === -1 ? 'ALL' : line.slice(secondComma + 1).trim().replace(/^["']|["']$/g, '');
+    } else {
+      const parts = line.split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
+      if (parts.length < 2) { skipped.push(`Row ${idx+2}: too few columns`); return; }
+      [analyst, date, shiftRaw = 'ALL'] = parts;
+    }
+
+    // Normalize analyst name (case-insensitive)
+    const matched = analysts.find(a => a.toLowerCase() === analyst.toLowerCase());
+    if (!matched) { skipped.push(`Row ${idx+2}: unknown analyst "${analyst}"`); return; }
+    analyst = matched;
+
+    // Normalize date
+    date = normalizeDate(date);
+    if (!date) { skipped.push(`Row ${idx+2}: invalid date`); return; }
+
+    // Parse shift field — may be a single value OR multiple comma/slash-separated IDs
+    // e.g. "S2,S3,S4" or "S2/S3" or "ALL" or "S1"
+    const rawUpper = shiftRaw.toUpperCase().replace(/SHIFT/gi, '').trim();
+
+    let shiftIds;
+    if (!rawUpper || rawUpper === 'ALL' || rawUpper === 'ALL SHIFTS') {
+      shiftIds = ['ALL'];
+    } else {
+      // Split on comma, slash, pipe, or space
+      shiftIds = rawUpper.split(/[,\/|\s]+/).map(s => s.trim()).filter(Boolean);
+      // Validate each
+      const invalid = shiftIds.filter(s => !VALID_SHIFTS.includes(s));
+      if (invalid.length) {
+        skipped.push(`Row ${idx+2}: unknown shift(s) "${invalid.join(',')}" — use S1/S2/S3/S4/ALL`);
+        return;
+      }
+    }
+
+    // Push one leave entry per shift ID (or one ALL entry)
+    shiftIds.forEach(shift => {
+      const dup = leaves.find(l => l.analyst===analyst && l.date===date && l.shift===shift);
+      if (!dup) {
+        leaves.push({ analyst, date, shift });
+        added.push(`${analyst} — ${date} — ${shift}`);
+      }
+    });
+  });
+
+  renderLeaveList();
+
+  const msg = `✔ Imported ${added.length} leave record${added.length!==1?'s':''}` +
+    (skipped.length ? ` | ⚠ Skipped ${skipped.length}: ${skipped.slice(0,3).join('; ')}${skipped.length>3?'...':''}` : '');
+  showCsvStatus(msg, added.length > 0 ? 'success' : 'error');
+}
+
+function normalizeDate(str) {
+  str = str.trim();
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  // DD/MM/YYYY or DD-MM-YYYY
+  let m = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (m) {
+    const d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0'), yr = m[3];
+    // Heuristic: if day part > 12 it must be DD/MM
+    if (parseInt(m[1]) > 12) return `${yr}-${mo}-${d}`;
+    // Default assume DD/MM/YYYY (common in Sri Lanka / international)
+    return `${yr}-${mo}-${d}`;
+  }
+  // Try native Date parse as last resort
+  const dt = new Date(str);
+  if (!isNaN(dt)) {
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  }
+  return null;
+}
+
+function showCsvStatus(msg, type) {
+  const el = document.getElementById('csvStatus');
+  el.style.display = 'block';
+  el.style.background = type==='success' ? 'rgba(0,255,136,0.08)' : 'rgba(255,68,68,0.08)';
+  el.style.border = `1px solid ${type==='success' ? 'rgba(0,255,136,0.3)' : 'rgba(255,68,68,0.3)'}`;
+  el.style.color = type==='success' ? 'var(--accent2)' : '#ff8888';
+  el.textContent = msg;
+  setTimeout(() => { el.style.display='none'; }, 6000);
+}
+
+function downloadLeaveTemplate() {
+  const startVal = document.getElementById('rosterStartDate').value;
+  const yr = startVal ? startVal.slice(0,4) : String(new Date().getFullYear());
+  const mo = startVal ? startVal.slice(5,7) : String(new Date().getMonth()+1).padStart(2,'0');
+  const sampleDate = startVal || `${yr}-${mo}-01`;
+  const sampleDate2 = `${yr}-${mo}-05`;
+
+  const rows = [
+    '# SOC Leave Template — columns: analyst, date (YYYY-MM-DD), shift (S1/S2/S3/S4/ALL)',
+    'analyst,date,shift',
+    ...analysts.slice(0,2).map((a,i) => `${a},${i===0?sampleDate:sampleDate2},ALL`),
+    analysts[0] ? `${analysts[0]},${yr}-${mo}-10,S3` : '',
+  ].filter(Boolean);
+
+  const blob = new Blob([rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='SOC_Leave_Template.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ─── ANALYSTS ─────────────────────────────────────────────────────────────────
+function addAnalyst() {
+  const inp = document.getElementById('analystInput');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (analysts.includes(name)) { inp.value=''; return; }
+  analysts.push(name);
+  inp.value = '';
+  renderAnalystTags();
+}
+
+function removeAnalyst(name) {
+  analysts = analysts.filter(a => a !== name);
+  leaves = leaves.filter(l => l.analyst !== name);
+  renderAnalystTags();
+  renderLeaveList();
+}
+
+function renderAnalystTags() {
+  const container = document.getElementById('analystTags');
+  container.innerHTML = analysts.map((a, i) => `
+    <div class="analyst-tag">
+      <span class="color-dot" style="background:${ANALYST_COLORS[i % ANALYST_COLORS.length]}"></span>
+      ${a}
+      <span class="remove-tag" onclick="removeAnalyst('${a}')">&times;</span>
+    </div>
+  `).join('');
+}
+
+// ─── LEAVES ───────────────────────────────────────────────────────────────────
+function addLeaveEntry() {
+  const startVal = document.getElementById('rosterStartDate').value;
+  leaves.push({ analyst: analysts[0] || '', date: startVal || '', shift: 'ALL' });
+  renderLeaveList();
+}
+
+function renderLeaveList() {
+  const container = document.getElementById('leaveList');
+  container.innerHTML = leaves.map((l, i) => `
+    <div class="leave-entry">
+      <select onchange="leaves[${i}].analyst=this.value">
+        ${analysts.map(a => `<option value="${a}" ${l.analyst===a?'selected':''}>${a}</option>`).join('')}
+      </select>
+      <input type="date" value="${l.date}" onchange="leaves[${i}].date=this.value">
+      <select onchange="leaves[${i}].shift=this.value">
+        <option value="ALL" ${l.shift==='ALL'?'selected':''}>All Shifts</option>
+        <option value="S1"  ${l.shift==='S1' ?'selected':''}>S1 05–15</option>
+        <option value="S2"  ${l.shift==='S2' ?'selected':''}>S2 14–24</option>
+        <option value="S3"  ${l.shift==='S3' ?'selected':''}>S3 23–06</option>
+        <option value="S4"  ${l.shift==='S4' ?'selected':''}>S4 20–03</option>
+      </select>
+      <button class="btn-remove" onclick="leaves.splice(${i},1);renderLeaveList()">×</button>
+    </div>
+  `).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:6px 0;font-family:Share Tech Mono,monospace">No leaves added</div>';
+}
+
+// ─── GLOBAL HELPERS ──────────────────────────────────────────────────────────
+// leaveMap is built fresh on each generateRoster call and stored in rosterData.
+// These helpers read from rosterData.leaveMap so they work from any function.
+function isOnLeave(analyst, dateStr, shiftId) {
+  const lm = rosterData && rosterData.leaveMap;
+  return !!(lm && lm[dateStr] && lm[dateStr][analyst] && lm[dateStr][analyst].has(shiftId));
+}
+
+// ─── ROSTER GENERATION ────────────────────────────────────────────────────────
+function generateRoster() {
+  if (analysts.length === 0) {
+    alert('Please add at least one analyst.');
+    return;
+  }
+  const startVal = document.getElementById('rosterStartDate').value;
+  const endVal   = document.getElementById('rosterEndDate').value;
+  if (!startVal || !endVal) { alert('Please select a start and end date.'); return; }
+
+  const startDate = new Date(startVal + 'T00:00:00');
+  const endDate   = new Date(endVal   + 'T00:00:00');
+  if (endDate < startDate) { alert('End date must be on or after start date.'); return; }
+  if ((endDate - startDate) / 86400000 > 90) { alert('Date range cannot exceed 90 days.'); return; }
+
+  // Derive yr/mo from the start date (used for display & helpers)
+  const yr = startDate.getFullYear();
+  const mo = startDate.getMonth() + 1;
+
+  // Build calendar days with weekend flag — spanning the full selected range
+  const days = [];
+  const cursor = new Date(startDate);
+  while (cursor <= endDate) {
+    const day     = cursor.getDate();
+    const curYr   = cursor.getFullYear();
+    const curMo   = cursor.getMonth() + 1;
+    const dow     = cursor.getDay(); // 0=Sun, 6=Sat
+    const dateStr = `${curYr}-${String(curMo).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    days.push({ day, dow, isWeekend: dow===0||dow===6, dateStr, yr: curYr, mo: curMo });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // Range label for display
+  const rangeLabel = startVal === endVal ? startVal
+    : `${startVal} → ${endVal}`;
+
+  // Build leave lookup: { "YYYY-MM-DD": { analyst: Set<shiftId> } }
+  // A leave with shift=ALL blocks ALL shift IDs for that analyst that day.
+  const leaveMap = {};
+  leaves.forEach(l => {
+    const analyst = (l.analyst || '').trim();
+    const date    = (l.date    || '').trim();
+    const shift   = (l.shift   || 'ALL').trim().toUpperCase();
+    if (!analyst || !date) return;
+    if (!leaveMap[date]) leaveMap[date] = {};
+    if (!leaveMap[date][analyst]) leaveMap[date][analyst] = new Set();
+    const shiftIds = shift === 'ALL' ? ['S1','S2','S3','S4'] : [shift];
+    shiftIds.forEach(sid => leaveMap[date][analyst].add(sid));
+  });
+
+  // Track per analyst: last shift end time as absolute hour from range start (day index 0 = day 1 of range)
+  // dayIdx is the 0-based index of the day in the days array
+  function dayHour(dayIdx, h) { return dayIdx * 24 + h; }
+
+  // Helper: given a dateStr "YYYY-MM-DD", return the Mon-anchored week key
+  function weekKey(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const dayOfWeek = (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - dayOfWeek);
+    return `${monday.getFullYear()}-W${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+  }
+
+  const NIGHT_SHIFTS = new Set(['S3', 'S4']); // shifts counted as night shifts
+
+  const analystState = {};
+  analysts.forEach(a => {
+    // consecNight: count of consecutive night shifts ending on the most-recent assigned day
+    // nightByWeek: { weekKey: count } — night shifts per calendar week (Mon–Sun)
+    analystState[a] = { lastEndAbsHour: -999, consec3: 0, consecNight: 0, nightByWeek: {}, shifts: {} };
+  });
+
+  // Round-robin index
+  let rrIdx = 0;
+  // Fresh seed each click → different valid variation
+  const rng = makeRng(Math.floor(Math.random() * 2**32));
+  generationCount++;
+  const genBtn = document.getElementById('generateBtn');
+  if (genBtn) genBtn.textContent = `🔄 REGENERATE${generationCount > 1 ? ' (v'+generationCount+')' : ''}`;
+
+  // Result: { dateStr: { S1: analyst|null, S2: analyst|null, S3: analyst|null, S4: analyst|null } }
+  const roster = {};
+  const errors = [];
+
+  days.forEach(({ day, isWeekend, dateStr }, dayIdx) => {
+    roster[dateStr] = {};
+
+    const availableShifts = SHIFTS.filter(s => isWeekend ? s.weekends : s.weekdays);
+
+    availableShifts.forEach(shift => {
+      // Find eligible analysts
+      const eligible = analysts.filter(a => {
+        // On leave?
+        if (leaveMap[dateStr]?.[a]?.has(shift.id)) return false;
+        // 12hr break: analyst's last shift ended at lastEndAbsHour
+        const shiftStartAbsHour = dayHour(dayIdx, shift.startH);
+        const state = analystState[a];
+        if (shiftStartAbsHour - state.lastEndAbsHour < 12) return false;
+        // Night-shift rules (S3 & S4)
+        if (NIGHT_SHIFTS.has(shift.id)) {
+          // Rule 1: no more than 2 consecutive night shifts
+          if (state.consecNight >= 2) return false;
+          // Rule 2: no more than 2 night shifts per week
+          const wk = weekKey(dateStr);
+          if ((state.nightByWeek[wk] || 0) >= 2) return false;
+        }
+        return true;
+      });
+
+      if (eligible.length === 0) {
+        roster[dateStr][shift.id] = null;
+        errors.push(`${dateStr} ${shift.id}: No eligible analyst (constraints prevent assignment)`);
+        return;
+      }
+
+      // Prefer fewest shifts; break ties randomly for variation each click
+      eligible.sort((a, b) => {
+        const ca = Object.values(analystState[a].shifts).reduce((s,v)=>s+v,0);
+        const cb = Object.values(analystState[b].shifts).reduce((s,v)=>s+v,0);
+        if (ca !== cb) return ca - cb;
+        return rng() - 0.5;
+      });
+
+      const chosen = eligible[0];
+      roster[dateStr][shift.id] = chosen;
+
+      // Update state
+      const endAbsHour = dayHour(dayIdx, shift.endH); // endH already accounts for overnight (e.g. S3 endH=30 => next day 6am)
+      analystState[chosen].lastEndAbsHour = endAbsHour;
+      // Legacy S3 consecutive (kept for any legacy references)
+      if (shift.id === 'S3') {
+        analystState[chosen].consec3 = (analystState[chosen].consec3||0) + 1;
+      } else {
+        analystState[chosen].consec3 = 0;
+      }
+      // Night-shift consecutive counter
+      if (NIGHT_SHIFTS.has(shift.id)) {
+        analystState[chosen].consecNight = (analystState[chosen].consecNight || 0) + 1;
+        const wk = weekKey(day);
+        analystState[chosen].nightByWeek[wk] = (analystState[chosen].nightByWeek[wk] || 0) + 1;
+      } else {
+        analystState[chosen].consecNight = 0; // reset on any non-night shift
+      }
+      if (!analystState[chosen].shifts[shift.id]) analystState[chosen].shifts[shift.id] = 0;
+      analystState[chosen].shifts[shift.id]++;
+    });
+  });
+
+  // ── Assign Backup analysts ──
+  // S1: all days, S2: all days, S3: weekends only. Condition: not on leave, not same as On Duty.
+  const BACKUP_SHIFT_IDS = new Set(['S1','S2','S3']);
+  const backup = {};
+  days.forEach(({ day, isWeekend, dateStr }) => {
+    backup[dateStr] = {};
+    const dayRoster = roster[dateStr] || {};
+    const availableShifts = SHIFTS.filter(s => {
+      if (!BACKUP_SHIFT_IDS.has(s.id)) return false;
+      if (s.id === 'S3' && !isWeekend) return false; // S3 backup weekends only
+      return true;
+    });
+    availableShifts.forEach(shift => {
+      const onDuty = dayRoster[shift.id];
+      // Eligible: not on leave for this shift, not the same as On Duty
+      const eligible = analysts.filter(a => {
+        if (a === onDuty) return false;
+        if (leaveMap[dateStr]?.[a]?.has(shift.id)) return false;
+        return true;
+      });
+      if (eligible.length === 0) { backup[dateStr][shift.id] = null; return; }
+      // Pick the one with fewest total backup assignments to balance
+      const backupCounts = {};
+      analysts.forEach(a => { backupCounts[a] = 0; });
+      Object.values(backup).forEach(d => Object.values(d).forEach(b => { if (b) backupCounts[b] = (backupCounts[b]||0)+1; }));
+      eligible.sort((a,b) => (backupCounts[a]||0) !== (backupCounts[b]||0)
+        ? (backupCounts[a]||0) - (backupCounts[b]||0)
+        : rng() - 0.5);
+      backup[dateStr][shift.id] = eligible[0];
+    });
+  });
+
+  rosterData = { yr, mo, days, roster, backup, leaveMap, analystState, errors, rangeLabel };
+
+  // Overlay pinned manual assignments (never overwritten by auto-generation)
+  Object.entries(pinnedShifts).forEach(([dateStr, shiftMap]) => {
+    if (!roster[dateStr]) return;
+    Object.entries(shiftMap).forEach(([sid, analyst]) => {
+      roster[dateStr][sid] = analyst; // null = pinned-unassigned
+    });
+  });
+
+  renderMainPanel();
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderMainPanel() {
+  const { yr, mo, days, roster, backup, leaveMap, analystState, errors, rangeLabel } = rosterData;
+  const monthName = new Date(yr, mo-1, 1).toLocaleString('default',{month:'long'});
+  const totalShifts = Object.values(roster).reduce((t, d) => t + Object.values(d).filter(v=>v).length, 0);
+
+  const panel = document.getElementById('mainPanel');
+
+  // Stats
+  const totalDays = days.length;
+  const unassigned = Object.values(roster).reduce((t,d) => t + Object.values(d).filter(v=>v===null).length, 0);
+  const analystCount = analysts.length;
+
+  let html = '';
+
+  // Header
+  html += `
+  <div style="padding:20px 24px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div>
+      <div class="roster-title">${(rangeLabel || monthName.toUpperCase() + ' ' + yr)} — SOC ROSTER</div>
+      <div class="roster-meta">${totalDays} DAYS · ${analystCount} ANALYSTS · ${totalShifts} SHIFTS ASSIGNED</div>
+    </div>
+    <div class="legend" style="margin-left:auto">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--shift1b)"></div>S1 05–15</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--shift2b)"></div>S2 14–24</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--shift3b)"></div>S3 23–06</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--shift4b)"></div>S4 20–03</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div>Leave</div>
+    </div>
+  </div>`;
+
+  const pinnedCount = Object.values(pinnedShifts).reduce((t,d)=>t+Object.keys(d).length,0);
+
+  // Export row
+  html += `
+  <div class="export-row">
+    <button class="btn-export" onclick="window.print()">🖨 PRINT</button>
+    <button class="btn-export" onclick="exportCSV()">⬇ EXPORT CSV</button>
+    <button class="btn-export" onclick="exportExcel()" style="border-color:var(--accent2);color:var(--accent2)">📊 EXPORT EXCEL</button>
+    ${pinnedCount > 0 ? `<button class="btn-export" onclick="clearAllPins()" style="border-color:var(--accent3);color:var(--accent3);margin-left:auto">✕ CLEAR PINS (${pinnedCount})</button>` : ''}
+  </div>`;
+
+  // Stats bar
+  html += `<div class="stats-bar">
+    <div class="stat-item"><div class="stat-label">Total Shifts</div><div class="stat-value">${totalShifts}</div></div>
+    <div class="stat-item"><div class="stat-label">Analysts</div><div class="stat-value">${analystCount}</div></div>
+    <div class="stat-item"><div class="stat-label">Avg / Analyst</div><div class="stat-value">${analystCount ? (totalShifts/analystCount).toFixed(1) : 0}</div></div>
+    <div class="stat-item"><div class="stat-label">Unassigned</div><div class="stat-value" style="color:${unassigned?'var(--warn)':'var(--accent2)'}">${unassigned}</div></div>
+    <div class="stat-item"><div class="stat-label">Coverage</div><div class="stat-value">${totalShifts+unassigned>0?Math.round(totalShifts/(totalShifts+unassigned)*100):0}%</div></div>
+    <div class="stat-item"><div class="stat-label">📌 Pinned</div><div class="stat-value" style="color:${pinnedCount?'var(--accent4)':'var(--text-dim)'}">${pinnedCount}</div></div>
+  </div>`;
+
+  // Tabs
+  html += `
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'tab-calendar')">📅 CALENDAR VIEW</div>
+    <div class="tab" onclick="switchTab(this,'tab-analysts')">👤 ANALYST BREAKDOWN</div>
+    <div class="tab" onclick="switchTab(this,'tab-timeline')">📊 ANALYST TIMELINE</div>
+  </div>`;
+
+  // Errors
+  if (errors.length) {
+    html += `<div class="errors-panel">
+      <div class="errors-title">⚠ CONSTRAINT VIOLATIONS (${errors.length})</div>
+      ${errors.slice(0,10).map(e=>`<div class="error-item">${e}</div>`).join('')}
+      ${errors.length>10?`<div class="error-item" style="color:var(--text-dim)">...and ${errors.length-10} more</div>`:''}
+    </div>`;
+  }
+
+  // Calendar tab
+  html += `<div class="tab-content active" id="tab-calendar">`;
+  html += renderCalendar(yr, mo, days, roster, backup, leaveMap);
+  html += `</div>`;
+
+  // Analyst breakdown tab
+  html += `<div class="tab-content" id="tab-analysts">`;
+  html += renderAnalystBreakdown(analystState, leaveMap);
+  html += `</div>`;
+
+  // Analyst timeline tab
+  html += `<div class="tab-content" id="tab-timeline">`;
+  html += renderAnalystTimeline(yr, mo, days, roster, leaveMap);
+  html += `</div>`;
+
+  panel.innerHTML = html;
+}
+
+function renderCalendar(yr, mo, days, roster, backup, leaveMap) {
+  // Use the DOW of the actual first day in the range (may not be day-1 of its month)
+  const firstDow = days.length > 0 ? days[0].dow : new Date(yr, mo-1, 1).getDay();
+
+  let html = `<div class="calendar-wrap"><table class="calendar-grid">
+  <thead><tr>
+    <th>SUN</th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th class="weekend-th">SAT</th>
+  </tr></thead><tbody><tr>`;
+
+  // Empty leading cells
+  for (let i = 0; i < firstDow; i++) html += `<td class="day-cell empty"></td>`;
+
+  days.forEach(({ day, dow, isWeekend, dateStr }) => {
+    const dayRoster = roster[dateStr] || {};
+    const dayLeaves = leaveMap[dateStr] || {};
+
+    html += `<td class="day-cell ${isWeekend?'weekend':''}">`;
+    html += `<div class="day-num">${day}${isWeekend?'<span class="weekend-badge">WE</span>':''}`;
+    html += `</div>`;
+
+    const availableShiftIds = isWeekend ? ['S1','S2','S3'] : ['S1','S2','S3','S4'];
+
+    const dayBackup = (backup && backup[dateStr]) || {};
+    // Backup applies to S1 all days, S2 all days, S3 weekends only
+    const BACKUP_SIDS = isWeekend ? new Set(['S1','S2','S3']) : new Set(['S1','S2']);
+
+    availableShiftIds.forEach(sid => {
+      const shift = SHIFTS.find(s=>s.id===sid);
+      const assigned = dayRoster[sid];
+      const aIdx = analysts.indexOf(assigned);
+      const color = aIdx>=0 ? ANALYST_COLORS[aIdx%ANALYST_COLORS.length] : null;
+
+      const isPinned = pinnedShifts[dateStr]?.[sid] !== undefined;
+      if (assigned) {
+        html += `<div class="shift-block ${shift.cls}${isPinned?' pinned':''}" title="${sid}: ${shift.label}${isPinned?' [PINNED]':''}" onclick="openShiftEdit('${dateStr}','${sid}','${shift.label}')" style="cursor:pointer">
+          <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;margin-right:2px"></span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:52px">${assigned}</span>
+          ${isPinned ? '<span style="font-size:9px;margin-left:auto">📌</span>' : ''}
+          <span class="shift-time">${shift.label}</span>
+        </div>`;
+      } else {
+        html += `<div class="shift-block unassigned${isPinned?' pinned':''}" title="${sid}: UNASSIGNED${isPinned?' [PINNED]':''}" onclick="openShiftEdit('${dateStr}','${sid}','${shift.label}')" style="cursor:pointer">
+          <span style="opacity:0.5;font-size:10px">${isPinned?'📌 ':''}UNASSIGNED</span>
+          <span class="shift-time">${shift.label}</span>
+        </div>`;
+      }
+
+      // Backup pill (only for eligible shifts)
+      if (BACKUP_SIDS.has(sid)) {
+        const bk = dayBackup[sid];
+        const bkIdx = analysts.indexOf(bk);
+        const bkColor = bkIdx>=0 ? ANALYST_COLORS[bkIdx%ANALYST_COLORS.length] : null;
+        if (bk) {
+          html += `<div class="backup-block ${shift.cls}" title="Backup ${sid}: ${bk}">
+            <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${bkColor};flex-shrink:0"></span>
+            <span style="opacity:0.7;font-size:9px;margin-right:2px">BK</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:52px">${bk}</span>
+          </div>`;
+        } else {
+          html += `<div class="backup-block unassigned" title="Backup ${sid}: UNASSIGNED">
+            <span style="opacity:0.5;font-size:9px">BK —</span>
+          </div>`;
+        }
+      }
+    });
+
+    // Show leave badge only for analysts not already assigned to any shift today
+    Object.entries(dayLeaves).forEach(([analyst, shiftSet]) => {
+      const assignedToAny = Object.values(dayRoster).some(a => a === analyst);
+      if (assignedToAny) return; // already shown on a shift pill — skip badge
+      const shiftArr = shiftSet instanceof Set ? [...shiftSet] : (Array.isArray(shiftSet) ? shiftSet : [shiftSet]);
+      html += `<div class="shift-block leave" title="On Leave: ${shiftArr.join(',')}"><span>🏖 ${analyst}</span></div>`;
+    });
+
+    html += `</td>`;
+
+    if (dow === 6) html += `</tr><tr>`;
+  });
+
+  // Fill trailing cells
+  const lastDow = days[days.length-1].dow;
+  if (lastDow < 6) {
+    for (let i = lastDow+1; i <= 6; i++) html += `<td class="day-cell empty"></td>`;
+  }
+
+  html += `</tr></tbody></table></div>`;
+  return html;
+}
+
+function renderAnalystBreakdown(analystState, leaveMap) {
+  let html = `<div class="breakdown-grid">`;
+
+  analysts.forEach((a, i) => {
+    const state = analystState[a];
+    const color = ANALYST_COLORS[i%ANALYST_COLORS.length];
+    const s = state.shifts||{};
+    const total = Object.values(s).reduce((t,v)=>t+v,0);
+    const leaveDays = Object.values(leaveMap).filter(d=>d[a]).length;
+
+    html += `<div class="analyst-card" style="--card-color:${color}">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${color}"></div>
+      <div class="card-name" style="color:${color}">${a}</div>
+      <div class="card-stat"><span class="cs-label">Total Shifts</span><span class="cs-value">${total}</span></div>
+      <div class="card-stat"><span class="cs-label">S1 (05–15)</span><span class="cs-value">${s.S1||0}</span></div>
+      <div class="card-stat"><span class="cs-label">S2 (14–24)</span><span class="cs-value">${s.S2||0}</span></div>
+      <div class="card-stat"><span class="cs-label">S3 (23–06)</span><span class="cs-value">${s.S3||0}</span></div>
+      <div class="card-stat"><span class="cs-label">S4 (20–03)</span><span class="cs-value">${s.S4||0}</span></div>
+      <div class="card-stat"><span class="cs-label">Leave Days</span><span class="cs-value ${leaveDays>5?'warn':''}">${leaveDays}</span></div>
+    </div>`;
+  });
+
+  html += `</div>`;
+  return html;
+}
+
+// ─── ANALYST TIMELINE ────────────────────────────────────────────────────────
+function renderAnalystTimeline(yr, mo, days, roster, leaveMap) {
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAY_SHORT   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  // Per analyst, per day: figure out their status
+  // Mirrors EXACTLY the same logic as the roster generator / calendar view:
+  //   1. Check roster assignments first (source of truth)
+  //   2. If assigned to any shift → 'work'
+  //   3. Else if on leave for ALL applicable shifts (or has any leave entry) → 'leave'
+  //   4. Otherwise → 'off'
+  function getAnalystDayStatus(analyst, dateStr, isWeekend) {
+    const dayRoster = roster[dateStr] || {};
+    const shiftIds  = isWeekend ? ['S1','S2','S3'] : ['S1','S2','S3','S4'];
+
+    // Check actual assignments — this is the ground truth
+    const myShifts = shiftIds.filter(sid => dayRoster[sid] === analyst);
+    if (myShifts.length > 0) return { type: 'work', shifts: myShifts };
+
+    // Not assigned to anything — check if on leave for at least one shift
+    const hasLeave = shiftIds.some(sid => isOnLeave(analyst, dateStr, sid));
+    if (hasLeave) return { type: 'leave', shifts: [] };
+
+    return { type: 'off', shifts: [] };
+  }
+
+  // Build full status matrix
+  const matrix = {}; // analyst -> [{ dateStr, type, shifts, isWeekend }]
+  analysts.forEach(a => {
+    matrix[a] = days.map(({ dateStr, isWeekend }) => ({
+      dateStr, isWeekend,
+      ...getAnalystDayStatus(a, dateStr, isWeekend)
+    }));
+  });
+
+  // Compute consecutive work streaks and max consecutive
+  function computeStreaks(dayStatuses) {
+    // Returns array of same length with { streak: N } — current running streak ending at this day
+    const result = [];
+    let run = 0;
+    dayStatuses.forEach(d => {
+      if (d.type === 'work') { run++; }
+      else { run = 0; }
+      result.push(run);
+    });
+    return result;
+  }
+
+  // Consecutive leave streaks
+  function computeLeaveStreaks(dayStatuses) {
+    const result = [];
+    let run = 0;
+    dayStatuses.forEach(d => {
+      if (d.type === 'leave') { run++; }
+      else { run = 0; }
+      result.push(run);
+    });
+    return result;
+  }
+
+  // Consecutive night-shift streaks (S3 or S4 only)
+  const NIGHT_IDS = new Set(['S3', 'S4']);
+  function computeNightStreaks(dayStatuses) {
+    const result = [];
+    let run = 0;
+    dayStatuses.forEach(d => {
+      const isNight = d.type === 'work' && d.shifts.some(s => NIGHT_IDS.has(s));
+      if (isNight) { run++; }
+      else { run = 0; }
+      result.push(run);
+    });
+    return result;
+  }
+
+  // Summary stats per analyst
+  const summaries = {};
+  analysts.forEach(a => {
+    const ds = matrix[a];
+    const workDays  = ds.filter(d => d.type === 'work').length;
+    const leaveDays = ds.filter(d => d.type === 'leave').length;
+    const offDays   = ds.filter(d => d.type === 'off').length;
+    const workStreaks   = computeStreaks(ds);
+    const maxConsecWork  = Math.max(0, ...workStreaks);
+    const leaveStreaks  = computeLeaveStreaks(ds);
+    const maxConsecLeave = Math.max(0, ...leaveStreaks);
+    const nightStreaks   = computeNightStreaks(ds);
+    const maxConsecNight = Math.max(0, ...nightStreaks);
+    const totalNightShifts = ds.filter(d => d.type === 'work' && d.shifts.some(s => NIGHT_IDS.has(s))).length;
+    summaries[a] = { workDays, leaveDays, offDays, maxConsecWork, maxConsecLeave, workStreaks, leaveStreaks, nightStreaks, maxConsecNight, totalNightShifts };
+  });
+
+  // ── SUMMARY CARDS ──
+  let html = `<div class="tl-consecutive-info">`;
+  analysts.forEach((a, i) => {
+    const color = ANALYST_COLORS[i % ANALYST_COLORS.length];
+    const s = summaries[a];
+    html += `<div class="tl-consec-card">
+      <div class="cc-name" style="color:${color}">${a}</div>
+      <div class="cc-stat">Work days: <span class="cc-val">${s.workDays}</span></div>
+      <div class="cc-stat">Leave days: <span class="cc-val">${s.leaveDays}</span></div>
+      <div class="cc-stat">Max consec. work: <span class="cc-val ${s.maxConsecWork >= 6 ? 'cc-warn' : 'cc-ok'}">${s.maxConsecWork}d</span></div>
+      <div class="cc-stat">Max consec. leave: <span class="cc-val ${s.maxConsecLeave >= 4 ? 'cc-warn' : 'cc-ok'}">${s.maxConsecLeave}d</span></div>
+      <div class="cc-stat" style="border-top:1px solid rgba(180,127,255,0.2);margin-top:4px;padding-top:4px">🌙 Night shifts: <span class="cc-val" style="color:var(--shift3b)">${s.totalNightShifts}</span></div>
+      <div class="cc-stat">Max consec. night: <span class="cc-val ${s.maxConsecNight >= 2 ? 'cc-warn' : 'cc-ok'}">${s.maxConsecNight}d</span></div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // ── LEGEND ──
+  html += `<div class="tl-legend">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-right:4px">LEGEND:</div>
+    <div class="tl-legend-item"><div class="tl-legend-pill tl-s1">S1</div>05:00–15:00</div>
+    <div class="tl-legend-item"><div class="tl-legend-pill tl-s2">S2</div>14:00–24:00</div>
+    <div class="tl-legend-item"><div class="tl-legend-pill tl-s3">S3</div>23:00–06:00</div>
+    <div class="tl-legend-item"><div class="tl-legend-pill tl-s4">S4</div>20:00–03:00</div>
+    <div class="tl-legend-item"><div class="tl-legend-pill tl-leave" style="background:rgba(255,68,68,0.12);color:#ff7777;border:1px solid rgba(255,68,68,0.3)">🏖</div>Leave</div>
+    <div class="tl-legend-item"><div class="tl-legend-pill tl-off" style="background:rgba(88,96,105,0.1);color:var(--text-dim);border:1px dashed rgba(88,96,105,0.3)">—</div>Off</div>
+    <div class="tl-legend-item" style="margin-left:8px">
+      <div style="background:var(--warn);color:#fff;font-family:Share Tech Mono,monospace;font-size:9px;padding:1px 5px;border-radius:8px;font-weight:700">N</div>
+      Consecutive work days badge
+    </div>
+    <div class="tl-legend-item">
+      <div style="background:var(--shift3b);color:#000;font-family:Share Tech Mono,monospace;font-size:9px;padding:1px 5px;border-radius:8px;font-weight:700">🌙N</div>
+      Consecutive night shifts badge
+    </div>
+    <div class="tl-legend-item">
+      <div style="font-size:12px;line-height:1.6;padding:0 4px">📌</div>
+      Manually pinned shift
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <button id="tlHideLeaveBtn" onclick="toggleTimelineLeave()" style="
+        font-family:'Share Tech Mono',monospace;
+        font-size:11px;
+        letter-spacing:1px;
+        padding:6px 14px;
+        border-radius:4px;
+        cursor:pointer;
+        background:transparent;
+        border:1px solid var(--border);
+        color:var(--text-dim);
+        transition:all 0.2s;
+        display:flex;align-items:center;gap:7px;
+      ">
+        <span style="font-size:13px">🏖</span>
+        <span id="tlHideLeaveBtnLabel">HIDE LEAVE &amp; OFF</span>
+      </button>
+      <button onclick="exportTimelinePNG()" id="tlExportPngBtn" style="
+        font-family:'Share Tech Mono',monospace;
+        font-size:11px;
+        letter-spacing:1px;
+        padding:6px 14px;
+        border-radius:4px;
+        cursor:pointer;
+        background:transparent;
+        border:1px solid var(--accent4);
+        color:var(--accent4);
+        transition:all 0.2s;
+        display:flex;align-items:center;gap:7px;
+      ">
+        <span style="font-size:13px">🖼</span>
+        <span>EXPORT PNG</span>
+      </button>
+    </div>
+  </div>`;
+
+  // ── TIMELINE TABLE ──
+  html += `<div class="timeline-wrap"><table class="timeline-table">`;
+
+  // Header row — range label + day numbers
+  const tlRangeLabel = (rosterData && rosterData.rangeLabel) || `${MONTH_NAMES[mo-1].toUpperCase()} ${yr}`;
+  html += `<thead><tr>
+    <th class="tl-analyst-col">${tlRangeLabel.toUpperCase()}</th>`;
+  days.forEach(({ day, dow, isWeekend }) => {
+    html += `<th class="${isWeekend ? 'weekend-th' : ''}">
+      <div>${DAY_SHORT[dow]}</div>
+      <div style="font-size:11px;color:var(--text-bright);font-weight:700">${day}</div>
+    </th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  // One row per analyst
+  analysts.forEach((a, ai) => {
+    const color = ANALYST_COLORS[ai % ANALYST_COLORS.length];
+    const ds = matrix[a];
+    const ws = summaries[a].workStreaks;
+    const ls = summaries[a].leaveStreaks;
+    const ns = summaries[a].nightStreaks;
+
+    html += `<tr class="tl-row">`;
+    html += `<td class="tl-analyst-name" style="color:${color}">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+        ${a}
+      </div>
+    </td>`;
+
+    ds.forEach((d, di) => {
+      const nextD = ds[di + 1];
+      const isStreakEnd = d.type === 'work' && ws[di] >= 3 && (!nextD || nextD.type !== 'work');
+      const isLeaveStreakEnd = d.type === 'leave' && ls[di] >= 2 && (!nextD || nextD.type !== 'leave');
+      const streak = ws[di];
+      const leaveStreak = ls[di];
+      const nightStreak = ns[di];
+      const isNightDay = d.type === 'work' && d.shifts.some(s => NIGHT_IDS.has(s));
+      const isNightStreakEnd = isNightDay && (!nextD || !nextD.shifts || !nextD.shifts.some(s => NIGHT_IDS.has(s)));
+
+      // Check if any of this analyst's shifts on this day are pinned
+      const hasPinnedShift = d.type === 'work' && d.shifts.some(sid =>
+        pinnedShifts[d.dateStr] && pinnedShifts[d.dateStr][sid] !== undefined
+      );
+
+      html += `<td class="tl-cell ${d.isWeekend ? 'tl-weekend' : ''} ${(d.type==='leave'||d.type==='off') ? 'tl-nw-cell' : ''}">`;
+
+      if (d.type === 'work') {
+        // Show each shift as a mini label, or combined
+        const shiftCls = d.shifts.length === 1 ? `tl-${d.shifts[0].toLowerCase()}` : 'tl-s1';
+        const label = d.shifts.join('+');
+        html += `<div class="tl-pill ${shiftCls}" title="${a}: ${d.shifts.join(', ')} on day ${di+1}${hasPinnedShift?' [PINNED]':''}">
+          <span style="font-size:9px">${label}</span>
+          ${hasPinnedShift ? '<span style="font-size:8px;position:absolute;top:1px;right:2px;line-height:1">📌</span>' : ''}
+          ${isStreakEnd ? `<div class="tl-streak-badge">${streak}d</div>` : ''}
+          ${isNightDay && isNightStreakEnd && nightStreak >= 1 ? `<div class="tl-streak-badge" style="background:var(--shift3b);color:#000;bottom:-6px;top:auto">🌙${nightStreak}</div>` : ''}
+        </div>`;
+      } else if (d.type === 'leave') {
+        html += `<div class="tl-pill tl-leave tl-hideable" title="${a}: Leave">
+          <span style="font-size:11px">🏖</span>
+          ${isLeaveStreakEnd ? `<div class="tl-streak-badge" style="background:var(--text-dim)">${leaveStreak}d</div>` : ''}
+        </div>`;
+      } else {
+        html += `<div class="tl-pill tl-off tl-hideable" title="${a}: Off">—</div>`;
+      }
+
+      html += `</td>`;
+    });
+
+    html += `</tr>`;
+  });
+
+  // Summary row — day totals (how many analysts working each day)
+  html += `<tr class="tl-summary-row">
+    <td class="tl-analyst-name">COVERAGE</td>`;
+  days.forEach(({ dateStr, isWeekend }) => {
+    const dr = roster[dateStr] || {};
+    const working = Object.values(dr).filter(v => v).length;
+    const total = isWeekend ? 3 : 4;
+    const pct = Math.round(working / total * 100);
+    const col = pct < 75 ? 'var(--warn)' : pct < 100 ? 'var(--accent4)' : 'var(--accent2)';
+    html += `<td style="color:${col};font-weight:700">${working}/${total}</td>`;
+  });
+  html += `</tr>`;
+
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+// ─── TIMELINE PNG EXPORT ─────────────────────────────────────────────────────
+async function exportTimelinePNG() {
+  if (!rosterData) return;
+
+  const btn = document.getElementById('tlExportPngBtn');
+  const origBtnLabel = btn.querySelector('span:last-child').textContent;
+  btn.querySelector('span:last-child').textContent = 'RENDERING...';
+  btn.style.opacity = '0.6';
+  btn.style.pointerEvents = 'none';
+
+  // Elements whose overflow/height we need to temporarily unlock
+  const target     = document.getElementById('tab-timeline');
+  const mainPanel  = document.getElementById('mainPanel');
+  const tlWrap     = target ? target.querySelector('.timeline-wrap') : null;
+  const tlTable    = target ? target.querySelector('.timeline-table') : null;
+
+  if (!target || !tlTable) {
+    alert('Generate a roster first, then open the Analyst Timeline tab.');
+    btn.querySelector('span:last-child').textContent = origBtnLabel;
+    btn.style.opacity = '';
+    btn.style.pointerEvents = '';
+    return;
+  }
+
+  // Save original styles
+  const saved = [
+    [mainPanel,  'overflow',   mainPanel.style.overflow],
+    [mainPanel,  'height',     mainPanel.style.height],
+    [target,     'overflow',   target.style.overflow],
+    [target,     'maxHeight',  target.style.maxHeight],
+    [target,     'height',     target.style.height],
+    [tlWrap,     'overflow',   tlWrap ? tlWrap.style.overflow : ''],
+    [tlWrap,     'width',      tlWrap ? tlWrap.style.width : ''],
+  ];
+
+  try {
+    const { yr, mo } = rosterData;
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    // ── Unlock all clipping containers ──────────────────────────────────────
+    mainPanel.style.overflow  = 'visible';
+    mainPanel.style.height    = 'auto';
+    target.style.overflow     = 'visible';
+    target.style.maxHeight    = 'none';
+    target.style.height       = 'auto';
+    if (tlWrap) {
+      tlWrap.style.overflow   = 'visible';
+      // Force the wrap to be as wide as the table so nothing clips horizontally
+      tlWrap.style.width      = tlTable.scrollWidth + 'px';
+    }
+
+    // Wait for layout to fully reflow
+    await new Promise(r => setTimeout(r, 150));
+
+    // Measure the true full dimensions from the table itself
+    const tableRect = tlTable.getBoundingClientRect();
+    const fullW = Math.round(tlTable.scrollWidth)  + 40;
+    const fullH = Math.round(target.scrollHeight)  + 40;
+
+    const canvas = await html2canvas(target, {
+      backgroundColor : '#080c10',
+      scale           : 2,
+      useCORS         : true,
+      allowTaint      : true,
+      logging         : false,
+      scrollX         : -window.scrollX,
+      scrollY         : -window.scrollY,
+      windowWidth     : fullW,
+      windowHeight    : fullH,
+      width           : fullW,
+      height          : fullH,
+      x               : 0,
+      y               : 0,
+    });
+
+    // ── Restore all saved styles ─────────────────────────────────────────────
+    saved.forEach(([el, prop, val]) => { if (el) el.style[prop] = val; });
+
+    // ── Composite: title bar + captured content ──────────────────────────────
+    const SCALE = 2;
+    const titleH = 56;
+    const final  = document.createElement('canvas');
+    final.width  = canvas.width;
+    final.height = canvas.height + titleH * SCALE;
+
+    const ctx = final.getContext('2d');
+
+    // Title strip
+    ctx.fillStyle = '#0d1929';
+    ctx.fillRect(0, 0, final.width, titleH * SCALE);
+
+    ctx.fillStyle = '#00d4ff';
+    ctx.font = `bold ${20 * SCALE}px "Share Tech Mono", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText('SOC ANALYST TIMELINE', final.width / 2, 38 * SCALE);
+
+    ctx.fillStyle = '#586069';
+    ctx.font = `${10 * SCALE}px "Share Tech Mono", monospace`;
+    ctx.fillText(
+      `${(rosterData.rangeLabel || MONTH_NAMES[mo-1].toUpperCase() + ' ' + yr)}  ·  Generated ${new Date().toLocaleDateString()}`,
+      final.width / 2, 58 * SCALE
+    );
+
+    // Timeline content below title
+    ctx.drawImage(canvas, 0, titleH * SCALE);
+
+    // ── Download ─────────────────────────────────────────────────────────────
+    const link = document.createElement('a');
+    link.download = `SOC_Timeline_${(rosterData.rangeLabel||'').replace(/[ →]+/g,'_')||yr+'_'+String(mo).padStart(2,'0')}.png`;
+    link.href = final.toDataURL('image/png');
+    link.click();
+
+  } catch (err) {
+    // Always restore even on error
+    saved.forEach(([el, prop, val]) => { if (el) el.style[prop] = val; });
+    console.error('PNG export failed:', err);
+    alert('PNG export failed: ' + err.message);
+  } finally {
+    btn.querySelector('span:last-child').textContent = origBtnLabel;
+    btn.style.opacity = '';
+    btn.style.pointerEvents = '';
+  }
+}
+
+// ─── TIMELINE TOGGLE ─────────────────────────────────────────────────────────
+function toggleTimelineLeave() {
+  const tab = document.getElementById('tab-timeline');
+  const btn = document.getElementById('tlHideLeaveBtn');
+  const lbl = document.getElementById('tlHideLeaveBtnLabel');
+  if (!tab || !btn) return;
+
+  const hiding = tab.classList.toggle('hide-leave');
+  btn.classList.toggle('active', hiding);
+  lbl.textContent = hiding ? 'SHOW LEAVE & OFF' : 'HIDE LEAVE & OFF';
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function switchTab(el, tabId) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+function clearAll() {
+  if (!confirm('Clear all data?')) return;
+  analysts = [];
+  leaves = [];
+  rosterData = null;
+  pinnedShifts = {};
+  generationCount = 0;
+  const genBtn = document.getElementById('generateBtn');
+  if (genBtn) genBtn.textContent = '⚡ GENERATE ROSTER';
+  renderAnalystTags();
+  renderLeaveList();
+  document.getElementById('mainPanel').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">📡</div>
+      <div class="empty-title">AWAITING ROSTER GENERATION</div>
+      <div class="empty-sub">Configure analysts, month, and leaves → click GENERATE</div>
+    </div>`;
+}
+
+function exportCSV() {
+  if (!rosterData) return;
+  const { yr, mo, days, roster, backup } = rosterData;
+
+  // Column headers matching the required format
+  const headers = ['#', 'week', 'Date', 'Time', 'Shift Length', 'On Duty', 'Backup', '1 for PIVOT', 'Pinned'];
+  const rows = [headers.join('\t')]; // tab-separated so Excel opens cleanly
+
+  const FULL_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  // Shift definitions: id, time label, duration (hrs)
+  const SHIFT_ORDER = [
+    { id: 'S1', time: '05:00-15:00', dur: 10 },
+    { id: 'S2', time: '14:00-24:00', dur: 10 },
+    { id: 'S3', time: '23:00-06:00', dur: 7  },
+    { id: 'S4', time: '20:00-03:00', dur: 7  },
+  ];
+
+  let rowNum = 1;
+
+  days.forEach(({ day, dow, isWeekend, dateStr }) => {
+    const dr = roster[dateStr] || {};
+
+    // Week number (ISO-ish: week of year)
+    const dateObj = new Date(dateStr + 'T00:00:00');
+    const startOfYear = new Date(dateObj.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((dateObj - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+
+    // Full date string: "Monday, March 30, 2026"
+    const dateObj2 = new Date(dateStr + 'T00:00:00');
+    const csvYr = dateObj2.getFullYear(), csvMo = dateObj2.getMonth(), csvDay = dateObj2.getDate();
+    const fullDate = `${FULL_DAY_NAMES[dow]}, ${MONTH_NAMES[csvMo]} ${csvDay}, ${csvYr}`;
+
+    // Which shifts apply today
+    const shiftsToday = isWeekend
+      ? SHIFT_ORDER.filter(s => s.id !== 'S4')
+      : SHIFT_ORDER;
+
+    shiftsToday.forEach(shift => {
+      const analyst = dr[shift.id] || '';
+      const BACKUP_SIDS_CSV = new Set(['S1','S2','S3']);
+      const isWeekendDay = isWeekend;
+      const backupApplies = BACKUP_SIDS_CSV.has(shift.id) && (shift.id !== 'S3' || isWeekendDay);
+      const bkAnalyst = backupApplies ? ((backup && backup[dateStr] && backup[dateStr][shift.id]) || '') : '';
+      const pivot = analyst ? '1' : '';
+      const isPinned = pinnedShifts[dateStr] && pinnedShifts[dateStr][shift.id] !== undefined ? 'YES' : '';
+      rows.push([rowNum, weekNum, fullDate, shift.time, shift.dur, analyst, bkAnalyst, pivot, isPinned].join('\t'));
+      rowNum++;
+    });
+  });
+
+  const bom = '\uFEFF'; // UTF-8 BOM so Excel recognises encoding
+  const blob = new Blob([bom + rows.join('\r\n')], { type: 'text/tab-separated-values;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const { rangeLabel: rl } = rosterData;
+  a.download = `SOC_Roster_${(rl||'').replace(/[ →]+/g,'_')||yr+'_'+String(mo).padStart(2,'0')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── EXPORT EXCEL ─────────────────────────────────────────────────────────────
+function exportExcel() {
+  if (!rosterData) return;
+  const { yr, mo, days, roster, leaveMap } = rosterData;
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // ── Shift definitions ──
+  // Each shift: { id, usTime, slTime }
+  const SHIFT_ROWS = [
+    { id:'S1', usTime:'4.30pm-2.30am (+1)', slTime:'5:00am-3:00pm'    },
+    { id:'S2', usTime:'1.30am-11.30am',     slTime:'2:00pm-12:00am'   },
+    { id:'S3', usTime:'10.30am-5.30pm',     slTime:'11:00pm-6:00am (+1)' },
+    { id:'S4', usTime:'7:30 AM - 2.30PM',   slTime:'8:00pm - 3:00 AM' },
+  ];
+
+  // ── Colour palette (ARGB hex, no #) ──
+  const C = {
+    black:       'FF000000',
+    white:       'FFFFFFFF',
+    orange:      'FFE97520',   // header date row orange
+    green:       'FF70AD47',   // On Duty green
+    lightGreen:  'FFA9D18E',   // Standby light green
+    yellow:      'FFFFC000',   // S4 row (orange-ish)
+    gray:        'FFD9D9D9',   // empty / label bg
+    analystBg:   'FFD6E4F0',   // default analyst pill bg
+  };
+
+  // Analyst colour mapping — same as app colours, mapped to ARGB
+  const ANALYST_ARGB = [
+    'FF00FF88','FF00D4FF','FFB47FFF','FFFFD700',
+    'FFFF6B35','FFFF6BBB','FF6BFFDC','FFFFB347'
+  ];
+  function analystColor(name) {
+    const idx = analysts.indexOf(name);
+    return idx >= 0 ? ANALYST_ARGB[idx % ANALYST_ARGB.length] : 'FFD6E4F0';
+  }
+  function analystTextColor(name) {
+    // Dark text for bright colours, white for dark
+    const bright = ['FF00FF88','FFFFD700','FF6BFFDC','FFFFB347','FFA9D18E'];
+    const c = analystColor(name);
+    return bright.includes(c) ? 'FF000000' : 'FF000000'; // always black for readability
+  }
+
+  // ── Build week buckets (Mon–Sat or Mon–Sun groups) ──
+  // Group days into weeks starting Monday
+  const weeks = [];
+  let currentWeek = [];
+  days.forEach((d, i) => {
+    currentWeek.push(d);
+    // End week on Sunday (dow=0) or last day of month
+    const isLastDay = i === days.length - 1;
+    if (d.dow === 0 || isLastDay) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+  });
+  if (currentWeek.length) weeks.push(currentWeek);
+
+  // ── SheetJS workbook setup ──
+  const wb = XLSX.utils.book_new();
+  const ws = {};
+  const merges = [];
+  let row = 0; // 0-based row index for SheetJS
+
+  // Helper to set a cell
+  function cell(r, c, v, style) {
+    const addr = XLSX.utils.encode_cell({ r, c });
+    ws[addr] = { v, t: typeof v === 'number' ? 'n' : 's', s: style || {} };
+  }
+
+  function merge(r1, c1, r2, c2) {
+    merges.push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
+  }
+
+  // Style builders
+  function hdrStyle(bgARGB, textARGB, bold=true, sz=10) {
+    return {
+      font:      { name:'Arial', bold, sz, color:{ rgb: textARGB } },
+      fill:      { fgColor:{ rgb: bgARGB }, patternType:'solid' },
+      alignment: { horizontal:'center', vertical:'center', wrapText:false },
+      border:    { top:{style:'thin',color:{rgb:'FFB0B0B0'}}, bottom:{style:'thin',color:{rgb:'FFB0B0B0'}},
+                   left:{style:'thin',color:{rgb:'FFB0B0B0'}}, right:{style:'thin',color:{rgb:'FFB0B0B0'}} }
+    };
+  }
+
+  function labelStyle(bgARGB, textARGB, bold=false, sz=9) {
+    return {
+      font:      { name:'Arial', bold, sz, color:{ rgb: textARGB } },
+      fill:      { fgColor:{ rgb: bgARGB }, patternType:'solid' },
+      alignment: { horizontal:'left', vertical:'center', wrapText:false },
+      border:    { top:{style:'thin',color:{rgb:'FFD0D0D0'}}, bottom:{style:'thin',color:{rgb:'FFD0D0D0'}},
+                   left:{style:'thin',color:{rgb:'FFD0D0D0'}}, right:{style:'thin',color:{rgb:'FFD0D0D0'}} }
+    };
+  }
+
+  function analystStyle(name, bgOverride) {
+    const bg  = bgOverride || analystColor(name);
+    return {
+      font:      { name:'Arial', bold:true, sz:9, color:{ rgb:'FF000000' } },
+      fill:      { fgColor:{ rgb: bg }, patternType:'solid' },
+      alignment: { horizontal:'center', vertical:'center' },
+      border:    { top:{style:'thin',color:{rgb:'FFB0B0B0'}}, bottom:{style:'thin',color:{rgb:'FFB0B0B0'}},
+                   left:{style:'thin',color:{rgb:'FFB0B0B0'}}, right:{style:'thin',color:{rgb:'FFB0B0B0'}} }
+    };
+  }
+
+  // Pinned variant: thick accent border around the cell
+  function pinnedAnalystStyle(name, bgOverride) {
+    const bg = bgOverride || analystColor(name);
+    return {
+      font:      { name:'Arial', bold:true, sz:9, color:{ rgb:'FF000000' } },
+      fill:      { fgColor:{ rgb: bg }, patternType:'solid' },
+      alignment: { horizontal:'center', vertical:'center' },
+      border:    { top:{style:'medium',color:{rgb:'FFFF6B35'}}, bottom:{style:'medium',color:{rgb:'FFFF6B35'}},
+                   left:{style:'medium',color:{rgb:'FFFF6B35'}}, right:{style:'medium',color:{rgb:'FFFF6B35'}} }
+    };
+  }
+
+  function emptyStyle(bgARGB) {
+    return {
+      fill:      { fgColor:{ rgb: bgARGB || 'FFFFFFFF' }, patternType:'solid' },
+      border:    { top:{style:'thin',color:{rgb:'FFD0D0D0'}}, bottom:{style:'thin',color:{rgb:'FFD0D0D0'}},
+                   left:{style:'thin',color:{rgb:'FFD0D0D0'}}, right:{style:'thin',color:{rgb:'FFD0D0D0'}} }
+    };
+  }
+
+  // ── Column layout ──
+  // Col 0 = US Time, Col 1 = SL Time, then 2 cols per day (On Duty, Standby)
+  // Days in template go Mon-Sat (6 days max per week block)
+  // Weekends (Sat/Sun) also shown in template
+
+  const COL_A = 0; // US Time
+  const COL_B = 1; // SL Time
+  function dayCol(dayIdx) { return COL_B + 1 + dayIdx * 2; } // On Duty col
+  function sbyCol(dayIdx) { return dayCol(dayIdx) + 1; }      // Standby col
+
+  // ── TITLE ROW ──
+  // "SOC Roster – Month Year"
+  const maxCols = COL_B + 1 + 7 * 2; // up to 7 days per week (Mon–Sun) × 2 cols
+  const { rangeLabel: xlRangeLabel } = rosterData;
+  cell(row, COL_A, `SOC Roster – ${xlRangeLabel || MONTH_NAMES[mo-1] + ' ' + yr}`,
+    { font:{name:'Arial',bold:true,sz:13,color:{rgb:C.white}},
+      fill:{fgColor:{rgb:'FF1F3864'},patternType:'solid'},
+      alignment:{horizontal:'center',vertical:'center'} });
+  merge(row, COL_A, row, maxCols - 1);
+  row++;
+
+  // ── BLANK row between title and first week ──
+  row++;
+
+  // ── Iterate weeks ──
+  weeks.forEach((week, wi) => {
+    // Include all days Mon–Sun
+    const weekDays = week;
+    const nd = weekDays.length;
+
+    // ── ROW 1: Day names ──
+    // Col A+B blank header
+    cell(row, COL_A, 'US Time',  hdrStyle('FFD9D9D9', C.black, true, 9));
+    cell(row, COL_B, 'SL Time',  hdrStyle('FFD9D9D9', C.black, true, 9));
+    weekDays.forEach((d, di) => {
+      const isWE = d.isWeekend;
+      const bgDay = isWE ? 'FF8B4513' : C.black;
+      cell(row, dayCol(di), DAY_NAMES[d.dow], hdrStyle(bgDay, C.white, true, 10));
+      cell(row, sbyCol(di), '',               hdrStyle(bgDay, C.white, true, 10));
+      merge(row, dayCol(di), row, sbyCol(di));
+    });
+    // Fill unused cols
+    for (let di = nd; di < 7; di++) {
+      cell(row, dayCol(di), '', emptyStyle('FFEEEEEE'));
+      cell(row, sbyCol(di), '', emptyStyle('FFEEEEEE'));
+    }
+    row++;
+
+    // ── ROW 2: Dates ──
+    cell(row, COL_A, '', emptyStyle('FFD9D9D9'));
+    cell(row, COL_B, '', emptyStyle('FFD9D9D9'));
+    weekDays.forEach((d, di) => {
+      const dObj = new Date(d.dateStr + 'T00:00:00'); const dateLabel = `${String(dObj.getMonth()+1).padStart(2,'0')}/${String(dObj.getDate()).padStart(2,'0')}/${dObj.getFullYear()}`;
+      cell(row, dayCol(di), dateLabel, hdrStyle(C.orange, C.white, true, 10));
+      cell(row, sbyCol(di), '',        hdrStyle(C.orange, C.white, true, 10));
+      merge(row, dayCol(di), row, sbyCol(di));
+    });
+    for (let di = nd; di < 7; di++) {
+      cell(row, dayCol(di), '', emptyStyle('FFEEEEEE'));
+      cell(row, sbyCol(di), '', emptyStyle('FFEEEEEE'));
+    }
+    row++;
+
+    // ── ROW 3: On Duty / Standby headers ──
+    cell(row, COL_A, '', emptyStyle('FFD9D9D9'));
+    cell(row, COL_B, '', emptyStyle('FFD9D9D9'));
+    weekDays.forEach((d, di) => {
+      cell(row, dayCol(di), 'On Duty', hdrStyle(C.green,      C.white, true, 9));
+      cell(row, sbyCol(di), 'Standby', hdrStyle(C.lightGreen, C.black, true, 9));
+    });
+    for (let di = nd; di < 7; di++) {
+      cell(row, dayCol(di), '', emptyStyle('FFEEEEEE'));
+      cell(row, sbyCol(di), '', emptyStyle('FFEEEEEE'));
+    }
+    row++;
+
+    // ── ROWS 4–7: One per shift ──
+    SHIFT_ROWS.forEach((sr, si) => {
+      const isS4 = sr.id === 'S4';
+      const slBg = isS4 ? C.yellow : 'FFD9D9D9';
+
+      cell(row, COL_A, sr.usTime, labelStyle('FFD9D9D9', C.black, false, 9));
+      cell(row, COL_B, sr.slTime, labelStyle(slBg,       C.black, isS4, 9));
+
+      weekDays.forEach((d, di) => {
+        const isWE = d.isWeekend;
+        const shiftApplies = !(isWE && sr.id === 'S4'); // S4 not on weekends
+
+        if (!shiftApplies) {
+          cell(row, dayCol(di), 'N/A', emptyStyle('FFE0E0E0'));
+          cell(row, sbyCol(di), '',    emptyStyle('FFE0E0E0'));
+        } else {
+          const assigned = (roster[d.dateStr] || {})[sr.id] || '';
+          const onLeaveDay = leaveMap[d.dateStr] && leaveMap[d.dateStr][assigned];
+          const onDutyName = assigned || '';
+          const isCellPinned = pinnedShifts[d.dateStr] && pinnedShifts[d.dateStr][sr.id] !== undefined;
+
+          // On Duty cell — analyst pill (thick orange border if pinned)
+          if (onDutyName) {
+            const cellStyle = isCellPinned ? pinnedAnalystStyle(onDutyName) : analystStyle(onDutyName);
+            cell(row, dayCol(di), isCellPinned ? onDutyName + ' 📌' : onDutyName, cellStyle);
+          } else {
+            cell(row, dayCol(di), isCellPinned ? '📌' : '', isCellPinned ? pinnedAnalystStyle('') : emptyStyle('FFF2F2F2'));
+          }
+          // Backup/Standby cell
+          const BACKUP_SIDS_XL = new Set(['S1','S2','S3']);
+          const isWeekendXL = d.isWeekend;
+          const backupAppliesXL = BACKUP_SIDS_XL.has(sr.id) && (sr.id !== 'S3' || isWeekendXL);
+          const bkName = backupAppliesXL && rosterData.backup && rosterData.backup[d.dateStr]
+            ? (rosterData.backup[d.dateStr][sr.id] || '') : '';
+          if (bkName) {
+            cell(row, sbyCol(di), bkName, analystStyle(bkName, null));
+          } else {
+            cell(row, sbyCol(di), '', emptyStyle('FFFAFAFA'));
+          }
+        }
+      });
+
+      // Fill unused day cols
+      for (let di = nd; di < 7; di++) {
+        cell(row, dayCol(di), '', emptyStyle('FFEEEEEE'));
+        cell(row, sbyCol(di), '', emptyStyle('FFEEEEEE'));
+      }
+      row++;
+    });
+
+    // ── Blank separator row between weeks ──
+    row++;
+    row++;
+  });
+
+  // ── Column widths ──
+  ws['!cols'] = [
+    { wch: 18 }, // A – US Time
+    { wch: 20 }, // B – SL Time
+    ...Array(12).fill(null).flatMap(() => [{ wch: 12 }, { wch: 12 }]) // 12 day pairs
+  ];
+
+  // ── Row heights ──
+  ws['!rows'] = Array(row).fill(null).map(() => ({ hpt: 22 }));
+
+  // ── Sheet range ──
+  ws['!ref'] = XLSX.utils.encode_range({ r: 0, c: 0 }, { r: row - 1, c: maxCols - 1 });
+  ws['!merges'] = merges;
+
+  // ── Add sheet and save ──
+  const sheetName = (xlRangeLabel || `${MONTH_NAMES[mo-1]} ${yr}`).replace(/[\\/?*\[\]]/g,'').slice(0,31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const filename = `SOC_Roster_${(xlRangeLabel||'').replace(/[ →]+/g,'_')||yr+'_'+String(mo).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, filename, { cellStyles: true });
+}
+</script>
+
+<!-- ── SHIFT EDIT MODAL ───────────────────────────────────────────────────── -->
+<div id="shiftEditOverlay">
+  <div id="shiftEditModal">
+    <h3 id="semTitle">EDIT SHIFT</h3>
+    <div class="sem-meta" id="semDate"></div>
+    <label>Assign Analyst</label>
+    <select id="shiftEditSelect"></select>
+    <div class="sem-actions">
+      <button class="btn btn-secondary" onclick="closeShiftEdit()">Cancel</button>
+      <button class="btn btn-accent" onclick="applyShiftEdit()">📌 Pin &amp; Save</button>
+    </div>
+    <button class="sem-unpin-btn" id="semUnpinBtn" onclick="unpinShift()">✕ Remove Pin</button>
+    <div class="sem-note">Pinned shifts survive regeneration</div>
+  </div>
+</div>
+
+<script>
+// ── MANUAL SHIFT EDIT ────────────────────────────────────────────────────────
+let _editCtx = null;
+
+function openShiftEdit(dateStr, shiftId, shiftLabel) {
+  if (!rosterData) return;
+  _editCtx = { dateStr, shiftId };
+
+  document.getElementById('semTitle').textContent = shiftId + ' — ' + shiftLabel;
+  document.getElementById('semDate').textContent = dateStr;
+
+  const sel = document.getElementById('shiftEditSelect');
+  sel.innerHTML = '<option value="">— Unassigned —</option>' +
+    analysts.map(a => '<option value="' + a + '">' + a + '</option>').join('');
+
+  const cur = rosterData.roster[dateStr] && rosterData.roster[dateStr][shiftId];
+  sel.value = cur || '';
+
+  const isPinned = pinnedShifts[dateStr] && pinnedShifts[dateStr][shiftId] !== undefined;
+  document.getElementById('semUnpinBtn').style.display = isPinned ? 'block' : 'none';
+
+  document.getElementById('shiftEditOverlay').classList.add('open');
+  sel.focus();
+}
+
+function closeShiftEdit() {
+  document.getElementById('shiftEditOverlay').classList.remove('open');
+  _editCtx = null;
+}
+
+function applyShiftEdit() {
+  if (!_editCtx || !rosterData) return;
+  const { dateStr, shiftId } = _editCtx;
+  const val = document.getElementById('shiftEditSelect').value;
+  const chosen = val === '' ? null : val;
+
+  if (!pinnedShifts[dateStr]) pinnedShifts[dateStr] = {};
+  pinnedShifts[dateStr][shiftId] = chosen;
+
+  if (!rosterData.roster[dateStr]) rosterData.roster[dateStr] = {};
+  rosterData.roster[dateStr][shiftId] = chosen;
+
+  closeShiftEdit();
+  renderMainPanel();
+}
+
+function unpinShift() {
+  if (!_editCtx) return;
+  const { dateStr, shiftId } = _editCtx;
+  if (pinnedShifts[dateStr]) {
+    delete pinnedShifts[dateStr][shiftId];
+    if (!Object.keys(pinnedShifts[dateStr]).length) delete pinnedShifts[dateStr];
+  }
+  closeShiftEdit();
+  renderMainPanel();
+}
+
+function clearAllPins() {
+  if (!confirm('Remove all pinned shifts? They will be re-assigned on next regenerate.')) return;
+  pinnedShifts = {};
+  renderMainPanel();
+}
+
+// Close modal on backdrop click or Escape
+document.getElementById('shiftEditOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeShiftEdit();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeShiftEdit();
+});
+</script>
+
+</body>
+</html>
