@@ -1193,7 +1193,7 @@ const SHIFTS = [
   { id:'S4', label:'20:00–03:00', cls:'s4', startH:20, endH:27, dur:7,  weekdays:true,  weekends:false },
 ];
 
-let analysts = ['Anji','Avishka','Dulin','Ravindu','Shanon','Sithija'];
+let analysts = ['Anji','Avishka','Dulin','Jayodya','Ravindu','Shanon','Sithija'];
 let leaves = []; // {analyst, date (YYYY-MM-DD), shift (S1/S2/S3/S4/ALL)}
 let rosterData = null; // generated roster
 let generationCount = 0;
@@ -1538,7 +1538,7 @@ function generateRoster() {
   analysts.forEach(a => {
     // consecNight: count of consecutive night shifts ending on the most-recent assigned day
     // nightByWeek: { weekKey: count } — night shifts per calendar week (Mon–Sun)
-    analystState[a] = { lastEndAbsHour: -999, consec3: 0, consecNight: 0, nightByWeek: {}, shifts: {} };
+    analystState[a] = { lastEndAbsHour: -999, consec3: 0, consecNight: 0, nightByWeek: {}, shifts: {}, consecDays: 0, lastWorkDayIdx: -999 };
   });
 
   // Round-robin index
@@ -1575,6 +1575,8 @@ function generateRoster() {
           const wk = weekKey(dateStr);
           if ((state.nightByWeek[wk] || 0) >= 2) return false;
         }
+        // Max 4 consecutive working days — need at least 1 day off after
+        if (state.consecDays >= 4 && dayIdx - state.lastWorkDayIdx === 1) return false;
         return true;
       });
 
@@ -1614,6 +1616,15 @@ function generateRoster() {
       }
       if (!analystState[chosen].shifts[shift.id]) analystState[chosen].shifts[shift.id] = 0;
       analystState[chosen].shifts[shift.id]++;
+      // Consecutive-days tracking (per calendar day, not per shift)
+      if (dayIdx !== analystState[chosen].lastWorkDayIdx) {
+        if (dayIdx - analystState[chosen].lastWorkDayIdx === 1) {
+          analystState[chosen].consecDays++;
+        } else {
+          analystState[chosen].consecDays = 1;
+        }
+        analystState[chosen].lastWorkDayIdx = dayIdx;
+      }
     });
   });
 
@@ -1839,12 +1850,21 @@ function renderCalendar(yr, mo, days, roster, backup, leaveMap) {
 }
 
 function renderAnalystBreakdown(analystState, leaveMap) {
+  // Always recount from the live roster so pinned changes are reflected immediately
+  const roster = rosterData && rosterData.roster || {};
+  const liveShifts = {};
+  analysts.forEach(a => { liveShifts[a] = { S1:0, S2:0, S3:0, S4:0 }; });
+  Object.values(roster).forEach(day => {
+    Object.entries(day).forEach(([sid, analyst]) => {
+      if (analyst && liveShifts[analyst]) liveShifts[analyst][sid] = (liveShifts[analyst][sid]||0) + 1;
+    });
+  });
+
   let html = `<div class="breakdown-grid">`;
 
   analysts.forEach((a, i) => {
-    const state = analystState[a];
     const color = ANALYST_COLORS[i%ANALYST_COLORS.length];
-    const s = state.shifts||{};
+    const s = liveShifts[a];
     const total = Object.values(s).reduce((t,v)=>t+v,0);
     const leaveDays = Object.values(leaveMap).filter(d=>d[a]).length;
 
@@ -2678,6 +2698,27 @@ function applyShiftEdit() {
   const { dateStr, shiftId } = _editCtx;
   const val = document.getElementById('shiftEditSelect').value;
   const chosen = val === '' ? null : val;
+
+  // Warn if manual pin violates the 4 consecutive days rule
+  if (chosen !== null && rosterData) {
+    const { days, roster } = rosterData;
+    const dayIdx = days.findIndex(d => d.dateStr === dateStr);
+    if (dayIdx !== -1) {
+      let consecDays = 0, lastWorkDayIdx = -999;
+      for (let di = 0; di < dayIdx; di++) {
+        const ds = days[di].dateStr;
+        const workedHere = Object.values(roster[ds] || {}).some(a => a === chosen);
+        if (workedHere) {
+          consecDays = (di - lastWorkDayIdx === 1) ? consecDays + 1 : 1;
+          lastWorkDayIdx = di;
+        }
+      }
+      if (consecDays >= 4 && dayIdx - lastWorkDayIdx === 1) {
+        const ok = confirm('⚠️ ' + chosen + ' has already worked ' + consecDays + ' consecutive day(s).\nPinning this violates the max 4 consecutive days rule.\n\nPin anyway?');
+        if (!ok) return;
+      }
+    }
+  }
 
   if (!pinnedShifts[dateStr]) pinnedShifts[dateStr] = {};
   pinnedShifts[dateStr][shiftId] = chosen;
